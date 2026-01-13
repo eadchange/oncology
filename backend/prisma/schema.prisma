@@ -1,0 +1,565 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int              @id @default(autoincrement())
+  username          String           @unique @db.VarChar(50)
+  email             String           @unique @db.VarChar(100)
+  phone             String?          @db.VarChar(20)
+  passwordHash      String           @map("password_hash") @db.VarChar(255)
+  isVerified        Boolean          @default(false) @map("is_verified")
+  emailVerifiedAt   DateTime?        @map("email_verified_at") @db.Timestamp()
+  phoneVerifiedAt   DateTime?        @map("phone_verified_at") @db.Timestamp()
+  verificationCode  String?          @map("verification_code") @db.VarChar(6)
+  codeExpiresAt     DateTime?        @map("code_expires_at") @db.Timestamp()
+  lastLoginAt       DateTime?        @map("last_login_at") @db.Timestamp()
+  loginCount        Int              @default(0) @map("login_count")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  favorites         Favorite[]
+  searchHistory     SearchHistory[]
+  userSessions      UserSession[]
+  feedback          Feedback[]
+  
+  @@index([email])
+  @@index([phone])
+  @@index([username])
+  @@map("users")
+}
+
+model Admin {
+  id           Int              @id @default(autoincrement())
+  username     String           @unique @db.VarChar(50)
+  passwordHash String           @map("password_hash") @db.VarChar(255)
+  role         String           @default("admin") @db.VarChar(20)
+  permissions  Json?            // JSON array of permissions
+  lastLoginAt  DateTime?        @map("last_login_at") @db.Timestamp()
+  loginCount   Int              @default(0) @map("login_count")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  operationLogs OperationLog[]
+  
+  @@map("admins")
+}
+
+model UserSession {
+  id            String   @id @default(uuid()) @db.VarChar(255)
+  userId        Int      @map("user_id")
+  sessionToken  String   @unique @map("session_token") @db.VarChar(255)
+  expiresAt     DateTime @map("expires_at") @db.Timestamp()
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model Drug {
+  id               Int                @id @default(autoincrement())
+  genericName      String             @map("generic_name") @db.VarChar(255)
+  brandName        String?            @map("brand_name") @db.VarChar(255)
+  brandNameCn      String?            @map("brand_name_cn") @db.VarChar(255)
+  drugClass        String?            @map("drug_class") @db.VarChar(100)
+  category         String?            @db.VarChar(50)
+  mechanism        String?            @db.Text
+  company          String?            @db.VarChar(255)
+  companyId        Int?               @map("company_id")
+  molecularFormula String?            @map("molecular_formula") @db.VarChar(255)
+  molecularWeight  Decimal?           @map("molecular_weight") @db.Decimal(10, 2)
+  casNumber        String?            @map("cas_number") @db.VarChar(20)
+  atcCode          String?            @map("atc_code") @db.VarChar(20)
+  drugbankId       String?            @map("drugbank_id") @db.VarChar(20)
+  chemblId         String?            @map("chembl_id") @db.VarChar(20)
+  pubchemId        String?            @map("pubchem_id") @db.VarChar(20)
+  chebiId          String?            @map("chebi_id") @db.VarChar(20)
+  keggId           String?            @map("kegg_id") @db.VarChar(20)
+  description      String?            @db.Text
+  pharmacodynamics String?            @db.Text
+  mechanismOfAction String?           @map("mechanism_of_action") @db.Text
+  absorption       String?            @db.Text
+  metabolism       String?            @db.Text
+  halfLife         String?            @map("half_life") @db.VarChar(50)
+  proteinBinding   String?            @map("protein_binding") @db.VarChar(100)
+  routeOfElimination String?          @map("route_of_elimination") @db.Text
+  volumeOfDistribution String?        @map("volume_of_distribution") @db.Text
+  clearance        String?            @db.Text
+  toxicity         String?            @db.Text
+  contraindications  String?          @db.Text
+  warnings         String?            @db.Text
+  adverseEffects   String?            @map("adverse_effects") @db.Text
+  dosageForms      String?            @map("dosage_forms") @db.Text
+  storageConditions String?           @map("storage_conditions") @db.Text
+  regulatoryInfo   Json?              @map("regulatory_info")
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  approvals        DrugApproval[]
+  indications      DrugIndication[]
+  targets          DrugTarget[]
+  interactions     DrugInteraction[]
+  
+  @@index([genericName])
+  @@index([brandName])
+  @@index([brandNameCn])
+  @@index([company])
+  @@index([category])
+  @@index([drugClass])
+  @@index([atcCode])
+  @@index([drugbankId])
+  @@fulltext([genericName, brandName, brandNameCn, drugClass, mechanism, company])
+  @@map("drugs")
+}
+
+model DrugApproval {
+  id                Int       @id @default(autoincrement())
+  drugId            Int       @map("drug_id")
+  agency            String    @db.VarChar(50)
+  approvalDate      DateTime? @map("approval_date") @db.Date
+  approvalType      String?   @map("approval_type") @db.VarChar(50)
+  indication        String?   @db.Text
+  dosageInfo        String?   @map("dosage_info") @db.Text
+  applicationNumber String?   @map("application_number") @db.VarChar(100)
+  productNumber     String?   @map("product_number") @db.VarChar(100)
+  orphanDrug        Boolean   @default(false) @map("orphan_drug")
+  breakthroughTherapy Boolean @default(false) @map("breakthrough_therapy")
+  fastTrack         Boolean   @default(false) @map("fast_track")
+  priorityReview    Boolean   @default(false) @map("priority_review")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  drug              Drug      @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  
+  @@index([drugId])
+  @@index([agency])
+  @@index([approvalDate])
+  @@map("drug_approvals")
+}
+
+model DrugIndication {
+  id                Int       @id @default(autoincrement())
+  drugId            Int       @map("drug_id")
+  indicationName    String    @map("indication_name") @db.VarChar(255)
+  indicationCategory String?  @map("indication_category") @db.VarChar(100)
+  icd10Code         String?   @map("icd10_code") @db.VarChar(20)
+  umlsCui           String?   @map("umls_cui") @db.VarChar(20)
+  meddraCode        String?   @map("meddra_code") @db.VarChar(20)
+  isPrimary         Boolean   @default(false) @map("is_primary")
+  lineOfTherapy     Int?      @map("line_of_therapy")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  drug              Drug      @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  
+  @@index([drugId])
+  @@index([indicationName])
+  @@index([indicationCategory])
+  @@map("drug_indications")
+}
+
+model DrugTarget {
+  id           Int       @id @default(autoincrement())
+  drugId       Int       @map("drug_id")
+  targetName   String    @map("target_name") @db.VarChar(255)
+  targetType   String?   @map("target_type") @db.VarChar(50)
+  uniprotId    String?   @map("uniprot_id") @db.VarChar(20)
+  geneSymbol   String?   @map("gene_symbol") @db.VarChar(50)
+  action       String?   @db.VarChar(50)
+  mechanism    String?   @db.Text
+  references   String?   @db.Text
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  drug         Drug      @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  
+  @@index([drugId])
+  @@map("drug_targets")
+}
+
+model DrugInteraction {
+  id              Int       @id @default(autoincrement())
+  drugId          Int       @map("drug_id")
+  interactingDrug String    @map("interacting_drug") @db.VarChar(255)
+  interactionType String?   @map("interaction_type") @db.VarChar(100)
+  severity        String?   @db.VarChar(20)
+  description     String?   @db.Text
+  mechanism       String?   @db.Text
+  management      String?   @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  drug            Drug      @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  
+  @@index([drugId])
+  @@map("drug_interactions")
+}
+
+model Study {
+  id                    Int            @id @default(autoincrement())
+  nctId                 String?        @unique @map("nct_id") @db.VarChar(20)
+  euctrId               String?        @map("euctr_id") @db.VarChar(20)
+  utn                   String?        @db.VarChar(50)
+  briefTitle            String?        @map("brief_title") @db.VarChar(500)
+  officialTitle         String?        @map("official_title") @db.VarChar(1000)
+  briefSummary          String?        @map("brief_summary") @db.Text
+  detailedDescription   String?        @map("detailed_description") @db.Text
+  studyType             String?        @map("study_type") @db.VarChar(50)
+  phase                 String?        @db.VarChar(20)
+  allocation            String?        @db.VarChar(50)
+  interventionModel     String?        @map("intervention_model") @db.VarChar(50)
+  primaryPurpose        String?        @map("primary_purpose") @db.VarChar(50)
+  masking               String?        @db.VarChar(50)
+  overallStatus         String?        @map("overall_status") @db.VarChar(50)
+  recruitmentStatus     String?        @map("recruitment_status") @db.VarChar(50)
+  whyStopped            String?        @map("why_stopped") @db.Text
+  startDate             DateTime?      @map("start_date") @db.Date
+  completionDate        DateTime?      @map("completion_date") @db.Date
+  primaryCompletionDate DateTime?      @map("primary_completion_date") @db.Date
+  verificationDate      DateTime?      @map("verification_date") @db.Date
+  lastUpdatePosted      DateTime?      @map("last_update_posted") @db.Date
+  enrollment            Int?           @map("enrollment")
+  actualEnrollment      Int?           @map("actual_enrollment")
+  hasExpandedAccess     Boolean        @default(false) @map("has_expanded_access")
+  biospecRetention      String?        @map("biospec_retention") @db.VarChar(100)
+  biospecDescription    String?        @map("biospec_description") @db.Text
+  eligibilityCriteria   String?        @map("eligibility_criteria") @db.Text
+  healthyVolunteers     Boolean?       @map("healthy_volunteers")
+  gender                String?        @db.VarChar(20)
+  minimumAge            String?        @map("minimum_age") @db.VarChar(20)
+  maximumAge            String?        @map("maximum_age") @db.VarChar(20)
+  studyDesign           Json?          @map("study_design")
+  primaryOutcomes       Json?          @map("primary_outcomes")
+  secondaryOutcomes     Json?          @map("secondary_outcomes")
+  otherOutcomes         Json?          @map("other_outcomes")
+  conditions            String[]
+  interventions         String[]
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt             DateTime       @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  sponsors              StudySponsor[]
+  sites                 StudySite[]
+  results               StudyResult[]
+  
+  @@index([nctId])
+  @@index([euctrId])
+  @@index([overallStatus])
+  @@index([phase])
+  @@index([studyType])
+  @@index([startDate])
+  @@index([completionDate])
+  @@fulltext([briefTitle, officialTitle, briefSummary])
+  @@map("studies")
+}
+
+model StudySponsor {
+  id           Int       @id @default(autoincrement())
+  studyId      Int       @map("study_id")
+  sponsorName  String    @map("sponsor_name") @db.VarChar(255)
+  sponsorType  String?   @map("sponsor_type") @db.VarChar(50)
+  sponsorClass String?   @map("sponsor_class") @db.VarChar(50)
+  leadSponsor  Boolean   @default(false) @map("lead_sponsor")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  study        Study     @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  
+  @@index([studyId])
+  @@index([sponsorName])
+  @@map("study_sponsors")
+}
+
+model StudySite {
+  id                Int       @id @default(autoincrement())
+  studyId           Int       @map("study_id")
+  siteName          String    @map("site_name") @db.VarChar(255)
+  siteCountry       String?   @map("site_country") @db.VarChar(100)
+  siteState         String?   @map("site_state") @db.VarChar(100)
+  siteCity          String?   @map("site_city") @db.VarChar(100)
+  siteStatus        String?   @map("site_status") @db.VarChar(50)
+  investigatorName  String?   @map("investigator_name") @db.VarChar(255)
+  contactInfo       Json?     @map("contact_info")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  study             Study     @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  
+  @@index([studyId])
+  @@index([siteCountry])
+  @@map("study_sites")
+}
+
+model StudyResult {
+  id                  Int       @id @default(autoincrement())
+  studyId             Int       @map("study_id")
+  resultType          String?   @map("result_type") @db.VarChar(20)
+  outcomeTitle        String?   @map("outcome_title") @db.VarChar(500)
+  outcomeDescription  String?   @map("outcome_description") @db.Text
+  timeFrame           String?   @map("time_frame") @db.VarChar(100)
+  populationDescription String? @map("population_description") @db.Text
+  reportingStatus     String?   @map("reporting_status") @db.VarChar(50)
+  hasResults          Boolean   @default(false) @map("has_results")
+  resultsFirstPosted  DateTime? @map("results_first_posted") @db.Date
+  resultsUrl          String?   @map("results_url") @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  study               Study     @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  
+  @@index([studyId])
+  @@map("study_results")
+}
+
+model Favorite {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  itemType  String    @map("item_type") @db.VarChar(20) // 'drug' or 'study'
+  itemId    Int       @map("item_id")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, itemType, itemId])
+  @@index([userId])
+  @@index([itemType])
+  @@index([itemId])
+  @@map("favorites")
+}
+
+model SearchHistory {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @map("user_id")
+  searchType    String?   @map("search_type") @db.VarChar(20)
+  searchQuery   String    @map("search_query") @db.VarChar(500)
+  searchFilters Json?     @map("search_filters")
+  resultCount   Int?      @map("result_count")
+  clickedResults Json?    @map("clicked_results")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([searchType])
+  @@index([createdAt])
+  @@map("search_history")
+}
+
+model SiteConfig {
+  id          Int       @id @default(autoincrement())
+  configKey   String    @unique @map("config_key") @db.VarChar(100)
+  configValue String?   @map("config_value") @db.Text
+  configType  String    @default("string") @map("config_type") @db.VarChar(20)
+  description String?   @db.Text
+  isEditable  Boolean   @default(true) @map("is_editable")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp()
+  
+  @@map("site_config")
+}
+
+model AdPosition {
+  id                  Int            @id @default(autoincrement())
+  positionKey         String         @unique @map("position_key") @db.VarChar(50)
+  positionName        String         @map("position_name") @db.VarChar(100)
+  positionDescription String?        @map("position_description") @db.Text
+  width               Int?
+  height              Int?
+  adType              String         @map("ad_type") @db.VarChar(50)
+  isActive            Boolean        @default(true) @map("is_active")
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  advertisements      Advertisement[]
+  
+  @@map("ad_positions")
+}
+
+model Advertisement {
+  id                  Int       @id @default(autoincrement())
+  positionId          Int       @map("position_id")
+  title               String?   @db.VarChar(255)
+  content             String?   @db.Text
+  adUrl               String?   @map("ad_url") @db.Text
+  imageUrl            String?   @map("image_url") @db.Text
+  startDate           DateTime? @map("start_date") @db.Date
+  endDate             DateTime? @map("end_date") @db.Date
+  maxImpressions      Int?      @map("max_impressions")
+  maxClicks           Int?      @map("max_clicks")
+  currentImpressions  Int       @default(0) @map("current_impressions")
+  currentClicks       Int       @default(0) @map("current_clicks")
+  isActive            Boolean   @default(true) @map("is_active")
+  priority            Int       @default(0)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  position            AdPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  statistics          AdStatistic[]
+  
+  @@index([positionId])
+  @@index([isActive])
+  @@map("advertisements")
+}
+
+model AdStatistic {
+  id            Int      @id @default(autoincrement())
+  adId          Int      @map("ad_id")
+  positionKey   String   @map("position_key") @db.VarChar(50)
+  displayCount  Int      @default(0) @map("display_count")
+  clickCount    Int      @default(0) @map("click_count")
+  date          DateTime @db.Date
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  ad            Advertisement @relation(fields: [adId], references: [id], onDelete: Cascade)
+  
+  @@unique([adId, date])
+  @@index([positionKey])
+  @@index([date])
+  @@map("ad_statistics")
+}
+
+model OperationLog {
+  id              Int       @id @default(autoincrement())
+  userId          Int?      @map("user_id")
+  adminId         Int?      @map("admin_id")
+  operationType   String    @map("operation_type") @db.VarChar(50)
+  operationDesc   String?   @map("operation_desc") @db.Text
+  ipAddress       String?   @map("ip_address") @db.VarChar(45)
+  userAgent       String?   @map("user_agent") @db.Text
+  requestUrl      String?   @map("request_url") @db.Text
+  requestMethod   String?   @map("request_method") @db.VarChar(10)
+  requestData     Json?     @map("request_data")
+  responseStatus  Int?      @map("response_status")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  // Relations
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  admin           Admin?    @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([adminId])
+  @@index([operationType])
+  @@index([createdAt])
+  @@map("operation_logs")
+}
+
+model ScrapingLog {
+  id              Int       @id @default(autoincrement())
+  source          String    @db.VarChar(50)
+  status          String?   @db.VarChar(20)
+  startTime       DateTime? @map("start_time") @db.Timestamp()
+  endTime         DateTime? @map("end_time") @db.Timestamp()
+  itemsProcessed  Int       @default(0) @map("items_processed")
+  itemsAdded      Int       @default(0) @map("items_added")
+  itemsUpdated    Int       @default(0) @map("items_updated")
+  itemsFailed     Int       @default(0) @map("items_failed")
+  errorMessage    String?   @map("error_message") @db.Text
+  logDetails      String?   @map("log_details") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  
+  @@index([source])
+  @@index([status])
+  @@index([createdAt])
+  @@map("scraping_logs")
+}
+
+model HelpCategory {
+  id            Int           @id @default(autoincrement())
+  categoryName  String        @map("category_name") @db.VarChar(100)
+  categoryKey   String        @unique @map("category_key") @db.VarChar(50)
+  description   String?       @db.Text
+  sortOrder     Int           @default(0) @map("sort_order")
+  parentId      Int?          @map("parent_id")
+  isActive      Boolean       @default(true) @map("is_active")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  parent        HelpCategory? @relation("HelpCategoryToHelpCategory", fields: [parentId], references: [id], onDelete: Cascade)
+  children      HelpCategory[] @relation("HelpCategoryToHelpCategory")
+  articles      HelpArticle[]
+  
+  @@index([parentId])
+  @@index([isActive])
+  @@map("help_categories")
+}
+
+model HelpArticle {
+  id          Int       @id @default(autoincrement())
+  categoryId  Int       @map("category_id")
+  title       String    @db.VarChar(255)
+  slug        String    @unique @db.VarChar(100)
+  content     String    @db.Text
+  summary     String?   @db.Text
+  tags        String[]
+  viewCount   Int       @default(0) @map("view_count")
+  isPublished Boolean   @default(false) @map("is_published")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  category    HelpCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@index([categoryId])
+  @@index([slug])
+  @@index([isPublished])
+  @@map("help_articles")
+}
+
+model FAQ {
+  id          Int       @id @default(autoincrement())
+  question    String    @db.Text
+  answer      String    @db.Text
+  category    String?   @db.VarChar(50)
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  viewCount   Int       @default(0) @map("view_count")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp()
+  
+  @@index([category])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("faqs")
+}
+
+model Feedback {
+  id          Int       @id @default(autoincrement())
+  userId      Int?      @map("user_id")
+  feedbackType String   @map("feedback_type") @db.VarChar(50)
+  subject     String?   @db.VarChar(255)
+  content     String    @db.Text
+  contactInfo String?   @map("contact_info") @db.VarChar(255)
+  status      String    @default("pending") @db.VarChar(20)
+  adminReply  String?   @map("admin_reply") @db.Text
+  repliedAt   DateTime? @map("replied_at") @db.Timestamp()
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp()
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp()
+  
+  // Relations
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("feedback")
+}
